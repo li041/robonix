@@ -70,6 +70,18 @@ RUN set -eux; \
     rm -f /tmp/webots.deb; \
     rm -rf /var/lib/apt/lists/*
 
+# Docker Desktop on WSL2 exposes a microsoft-standard kernel release inside
+# Linux containers. Set Webots' Linux installation explicitly so its resolver
+# does not fall back to the WSL/Windows installation path. The runtime compose
+# file repeats WEBOTS_HOME because it is also used by containers made from an
+# existing image.
+ENV WEBOTS_HOME=/usr/local/webots \
+    ROS2_WEBOTS_HOME=/usr/local/webots
+
+# Keep the path check in the image build: a broken Webots package should fail
+# while building the image instead of later when the simulator starts.
+RUN test -f "$WEBOTS_HOME/resources/version.txt"
+
 # Keep the remote viewer in read-only W3D broadcast mode. The public stream
 # port is injected by viewer_server.py at runtime so custom ports work with
 # both host and bridge networking. Webots' raw stream remains on port 1234.

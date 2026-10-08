@@ -51,6 +51,7 @@ services:
       # Webots checks USER/USERNAME for its IPC path (/tmp/webots/$USER/...).
       USER: "root"
       DISPLAY: "${DISPLAY:-:0}"
+      WEBOTS_HOME: /usr/local/webots
       # SSH/Moba X11 forwarding (DISPLAY=localhost:N) needs the host cookie
       # inside the container; bind-mount via ROBONIX_HOST_XAUTH (set in start.sh).
       XAUTHORITY: /root/.Xauthority
