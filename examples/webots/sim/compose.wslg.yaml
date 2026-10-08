@@ -1,0 +1,14 @@
+# WSLg exposes vGPU-backed OpenGL through Mesa's D3D12 Gallium driver.
+# Mount the Windows-provided WSL libraries and dxg device into the sim.
+
+services:
+  sim:
+    devices:
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl:/usr/lib/wsl:ro
+    environment:
+      LD_LIBRARY_PATH: "/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
+      MESA_D3D12_DEFAULT_ADAPTER_NAME: "${MESA_D3D12_DEFAULT_ADAPTER_NAME:-NVIDIA GeForce RTX 3050}"
+      GALLIUM_DRIVER: d3d12
+      MESA_LOADER_DRIVER_OVERRIDE: d3d12

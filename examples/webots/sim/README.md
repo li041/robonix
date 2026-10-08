@@ -92,10 +92,24 @@ only if your network needs a different mirror/source.
 | `complete_apartment.wbt`<br>![complete apartment](thumbnails/complete_apartment.jpg) | `break_room.wbt`<br>![break room](thumbnails/break_room.jpg) |
 | `kitchen.wbt`<br>![kitchen](thumbnails/kitchen.jpg) |  |
 
-`start.sh` auto-detects `nvidia-smi` and merges `compose.gpu.yaml` when
-present. Force CPU-only with `ROBONIX_FORCE_CPU=1`. The container's name
+`start.sh` auto-detects NVIDIA GPUs with `nvidia-smi -L` and merges
+`compose.gpu.yaml` when present. This list-only query also works around a
+WSL 2 issue where the default `nvidia-smi` table can segfault even though GPU
+queries succeed. Force CPU-only with `ROBONIX_FORCE_CPU=1`. The container's name
 is `robonix_tiago_sim` (referenced by every driver package's
 `docker exec`).
+
+On WSLg, `start.sh` also merges `compose.wslg.yaml` when `/dev/dxg` and
+`/usr/lib/wsl/lib` are available. It selects the RTX 3050 through Mesa's D3D12
+backend. Confirm the renderer from another terminal with:
+
+```bash
+docker exec robonix_tiago_sim glxinfo -B | grep -E 'OpenGL vendor|OpenGL renderer|Accelerated:'
+```
+
+The renderer should be `D3D12 (NVIDIA GeForce RTX 3050 Laptop GPU)` and report
+`Accelerated: yes`. If your GPU has another name, set
+`MESA_D3D12_DEFAULT_ADAPTER_NAME` to a matching name substring before launch.
 
 ## Requirements
 
@@ -108,9 +122,13 @@ is `robonix_tiago_sim` (referenced by every driver package's
   `~/.Xauthority`, or set `XAUTHORITY` to your host cookie path before
   `start.sh`. The sim compose file bind-mounts that file into the
   container as `/root/.Xauthority`.
-- For NVIDIA GPU: `nvidia-container-toolkit` installed on the host. An
-  NVIDIA-backed headless Xorg server additionally requires `nvidia_drv.so` and
-  the driver-version-matched `libglxserver_nvidia.so`; `start.sh` discovers
+- For NVIDIA GPU on native Linux: `nvidia-container-toolkit` installed on the
+  host. On WSL 2, install the NVIDIA Windows driver with WSL support; do not
+  install a Linux NVIDIA display driver in the distribution. With Docker
+  Desktop's WSL 2 backend, verify passthrough with
+  `docker run --rm --gpus all nvidia/cuda:12.6.0-base-ubuntu22.04 nvidia-smi -L`.
+  An NVIDIA-backed headless Xorg server additionally requires `nvidia_drv.so`
+  and the driver-version-matched `libglxserver_nvidia.so`; `start.sh` discovers
   them only for `WEBOTS_HEADLESS_MODE=nvidia` or GPU-backed `auto`. For a
   non-standard driver layout, set
   `ROBONIX_NVIDIA_XORG_DRIVER` and `ROBONIX_NVIDIA_GLX_SERVER` to the two

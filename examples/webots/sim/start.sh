@@ -184,7 +184,7 @@ if [[ "${ROBONIX_SIM_NETWORK:-host}" != "host" ]]; then
   echo "[sim/start]   export ROBONIX_ZENOH_ROUTER=tcp/127.0.0.1:${ROBONIX_SIM_ZENOH_PORT}"
 fi
 
-if [[ "${ROBONIX_FORCE_CPU:-0}" != "1" ]] && command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
+if [[ "${ROBONIX_FORCE_CPU:-0}" != "1" ]] && command -v nvidia-smi &>/dev/null && nvidia-smi -L &>/dev/null; then
   CF+=(-f compose.gpu.yaml)
   robonix_select_nvidia_gpu "${ROBONIX_GPU_ID:-}"
   if [[ "$EFFECTIVE_HEADLESS_MODE" == "nvidia" || "$EFFECTIVE_HEADLESS_MODE" == "auto" ]]; then
@@ -197,6 +197,15 @@ else
     exit 1
   fi
   echo "[sim/start] no GPU (or ROBONIX_FORCE_CPU=1) — CPU-only Webots"
+fi
+
+# WSLg exposes accelerated OpenGL through Mesa's D3D12 driver. Containers need
+# the WSL driver libraries as well as /dev/dxg; GPU device requests alone only
+# make CUDA/NVML visible and leave GLX on llvmpipe.
+if [[ -c /dev/dxg && -d /usr/lib/wsl/lib ]]; then
+  CF+=(-f compose.wslg.yaml)
+  export MESA_D3D12_DEFAULT_ADAPTER_NAME="${MESA_D3D12_DEFAULT_ADAPTER_NAME:-NVIDIA GeForce RTX 3050}"
+  echo "[sim/start] WSLg D3D12 rendering; preferred adapter: $MESA_D3D12_DEFAULT_ADAPTER_NAME"
 fi
 
 # Optional browser-streaming mode (ROBONIX_SIM_STREAM=1). Useful on
