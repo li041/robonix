@@ -786,7 +786,7 @@ async fn main() -> Result<()> {
         format!("0.0.0.0:{port}").parse()?
     };
     let listen_port = listen_addr.port();
-    let advertised = format!("127.0.0.1:{listen_port}");
+    let advertised = startup_driver_endpoint(listen_addr);
 
     info!("connecting to atlas at {atlas_http}");
     let mut atlas = AtlasClient::connect_with_retry(&atlas_http, 10, Duration::from_secs(2))
@@ -1057,6 +1057,10 @@ mod tests {
 
     #[test]
     fn startup_dial_rewrites_unspecified_addresses() {
+        assert_eq!(
+            startup_driver_endpoint("192.0.2.1:51001".parse().unwrap()),
+            "192.0.2.1:51001"
+        );
         assert_eq!(
             startup_driver_endpoint("0.0.0.0:51001".parse().unwrap()),
             "127.0.0.1:51001"

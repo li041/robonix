@@ -114,7 +114,9 @@ system:
 
 ## Environment
 
-- `ROBONIX_ATLAS` — atlas endpoint, default `127.0.0.1:50051`.
+- `ROBONIX_ATLAS` — atlas endpoint, default `127.0.0.1:50051`. During boot,
+  this overrides the client address derived from `system.atlas.listen`, so
+  WSL clients can dial a reachable IP while Atlas binds an unspecified address.
 - `VLM_API_KEY` / `VLM_BASE_URL` / `VLM_MODEL` — VLM credentials forwarded
   to pilot at boot.
 

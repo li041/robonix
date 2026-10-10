@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from pathlib import Path
 import tempfile
 import unittest
@@ -69,9 +70,26 @@ class ProviderBindHostTest(unittest.TestCase):
         self.assertIn('FastMCP(\n            self.id,\n            host=self._bind_host,', text)
         self.assertIn("enable_dns_rebinding_protection=protect_loopback", text)
         self.assertIn("allowed_hosts=_mcp_loopback_allowed_hosts(self._bind_host)", text)
-        self.assertIn('add_insecure_port(f"{self._bind_host}:0")', text)
-        self.assertIn('s.bind((self._bind_host, 0))', text)
         self.assertIn('host=self._bind_host,\n            port=self._mcp_port', text)
+
+    def test_mcp_server_uses_the_configured_port(self) -> None:
+        with socket.socket() as reservation:
+            reservation.bind(("127.0.0.1", 0))
+            port = reservation.getsockname()[1]
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict(
+            os.environ,
+            {"ROBONIX_MCP_PORT": str(port), "ROBONIX_PROVIDER_BIND_HOST": "127.0.0.1"},
+            clear=True,
+        ):
+            provider = Service(
+                id="test_provider",
+                namespace="robonix/service/test",
+                pkg_root=Path(directory),
+            )
+            provider._mcp_app = mock.Mock()
+            with mock.patch("uvicorn.Server"), mock.patch("threading.Thread"):
+                provider._start_mcp_server()
+            self.assertEqual(provider._mcp_port, port)
 
 
 if __name__ == "__main__":

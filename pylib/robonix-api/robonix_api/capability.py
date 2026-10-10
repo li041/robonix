@@ -217,6 +217,7 @@ class _ProviderBase:
         self._publishers: dict[str, Any] = {}
 
         self._driver_server = None
+        self._mcp_server = None
         self._mcp_server_thread: threading.Thread | None = None
         self._heartbeat_thread: threading.Thread | None = None
         self._stopping = threading.Event()
@@ -812,17 +813,16 @@ class _ProviderBase:
                 "attached gRPC servicer for %s -> %s.%s", contract_id, base, method_name
             )
 
-        # 2c. bind on port 0 -- OS picks free port.
-        self._driver_port = server.add_insecure_port(f"{self._bind_host}:0")
+        # Fixed ports allow container port publishing.
+        configured_port = int(os.environ.get("ROBONIX_DRIVER_PORT", "0"))
+        self._driver_port = server.add_insecure_port(
+            f"{self._bind_host}:{configured_port}"
+        )
         if self._driver_port == 0:
             raise RuntimeError(
                 f"cannot bind lifecycle gRPC server on {self._bind_host}"
             )
-        server.start()
         self._driver_server = server
-        log.info(
-            "Lifecycle gRPC serving on %s:%d", self._bind_host, self._driver_port
-        )
 
         # 3. atlas-declare every gRPC capability
         endpoint = f"{self._advertise_host()}:{self._driver_port}"
@@ -866,9 +866,20 @@ class _ProviderBase:
 
         # 4. FastMCP server
         if self._mcp_app is not None:
-            self._start_mcp_server()
-            if self._mcp_handlers:
+            try:
+                self._start_mcp_server()
                 self._declare_mcp_handlers()
+            except Exception:
+                self._teardown()
+                if registered_ok and not ATLAS.unregister(self.id):
+                    log.warning("[%s] could not unregister after MCP startup failed", self.id)
+                raise
+
+        # INIT/ACTIVATE must not succeed while MCP declarations are incomplete.
+        server.start()
+        log.info(
+            "Lifecycle gRPC serving on %s:%d", self._bind_host, self._driver_port
+        )
 
         # 5. heartbeat — pass the provider's stop Event so the thread
         # exits on _teardown instead of pinging atlas after TERMINATED.
@@ -879,7 +890,8 @@ class _ProviderBase:
         import uvicorn
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((self._bind_host, 0))
+        mcp_port = int(os.environ.get("ROBONIX_MCP_PORT", "0"))
+        s.bind((self._bind_host, mcp_port))
         self._mcp_port = s.getsockname()[1]
         s.close()
         cfg = uvicorn.Config(
@@ -889,12 +901,16 @@ class _ProviderBase:
             log_level="warning",
         )
         server = uvicorn.Server(cfg)
+        self._mcp_server = server
         thread = threading.Thread(target=server.run, name="robonix-mcp", daemon=True)
         thread.start()
         self._mcp_server_thread = thread
         log.info("MCP HTTP serving on %s:%d", self._bind_host, self._mcp_port)
 
     def _declare_mcp_handlers(self) -> None:
+        import grpc
+        import time
+
         endpoint = f"http://{self._advertise_host()}:{self._mcp_port}/mcp/"
         for fn in self._mcp_handlers:
             cid = getattr(fn, "_robonix_contract_id", None)
@@ -909,16 +925,28 @@ class _ProviderBase:
                 if input_cls is not None
                 else {"type": "object", "properties": {}, "required": []}
             )
-            try:
-                self.declare_capability(
-                    contract_id=cid,
-                    endpoint=endpoint,
-                    transport=Transport.MCP,
-                    params=McpParams(input_schema_json=schema_json),
-                    description=description,
-                )
-            except Exception as e:  # noqa: BLE001
-                log.warning("declare mcp %s failed: %s", cid, e)
+            for attempt in range(3):
+                try:
+                    self.declare_capability(
+                        contract_id=cid,
+                        endpoint=endpoint,
+                        transport=Transport.MCP,
+                        params=McpParams(input_schema_json=schema_json),
+                        description=description,
+                    )
+                    break
+                except grpc.RpcError as e:
+                    if e.code() not in (
+                        grpc.StatusCode.UNAVAILABLE,
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                    ) or attempt == 2:
+                        raise RuntimeError(
+                            f"[{self.id}] failed to declare MCP capability '{cid}'"
+                        ) from e
+                    log.warning(
+                        "declare mcp %s interrupted; retry %d/2: %s", cid, attempt + 1, e
+                    )
+                    time.sleep(0.25 * (attempt + 1))
 
     def _shutdown_after_driver_response(self) -> None:
         """Stop the provider only after Driver(SHUTDOWN) has replied."""
@@ -928,6 +956,9 @@ class _ProviderBase:
             self._stopping.set()
 
     def _teardown(self) -> None:
+        if self._mcp_server is not None:
+            self._mcp_server.should_exit = True
+            self._mcp_server = None
         for ch in self._channels:
             ch.close()
         self._channels.clear()
@@ -937,6 +968,7 @@ class _ProviderBase:
                 self._driver_server.stop(grace=2.0)
             except Exception:  # noqa: BLE001
                 pass
+            self._driver_server = None
 
     def _teardown_and_exit(self) -> None:
         self._stopping.set()

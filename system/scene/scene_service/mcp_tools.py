@@ -406,7 +406,9 @@ def _object_id_hint(reference: str, objects: list[SceneObject]) -> str:
 
 
 
-mcp = FastMCP("scene_provider")
+mcp = FastMCP(
+    "scene_provider", host=os.environ.get("ROBONIX_PROVIDER_BIND_HOST", "0.0.0.0")
+)
 
 
 @mcp_contract(mcp, contract_id="robonix/system/scene/list_objects")

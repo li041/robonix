@@ -7,6 +7,9 @@ applies optional access policy, then forwards accepted tasks to Pilot.
 Liaison does not implement ASR, TTS, microphone capture, speaker output, or
 voiceprint itself. Those are separate providers discovered through Atlas.
 
+An explicit `--listen` IP is also advertised through Atlas. Unspecified listen
+addresses advertise loopback; WSL deployments can select a reachable IPv4 address.
+
 ## Architecture
 
 ```

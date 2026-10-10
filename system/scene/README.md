@@ -700,3 +700,13 @@ The cam panel shows the same RGB + depth frames the perception pipeline consumes
 - **No episodic memory.** Long-term memory belongs to memory services, not scene.
 - **No direct motion control.** `goal_near` returns an approach pose; navigation is performed by `robonix/service/navigation/navigate`.
 - **No browser-side URDF renderer.** The 3D view uses Soma's navigation footprint rather than loading deployment mesh assets into the generic Scene container.
+
+With `ROBONIX_SIM_NETWORK=bridge`, the Docker launcher publishes lifecycle
+(`SCENE_DRIVER_PORT`, default `40201`) and MCP (`SCENE_MCP_PORT`, default
+`40202`) ports on `ROBONIX_ADVERTISE_HOST` (default `127.0.0.1`). Set that
+address to a reachable host IP for remote clients and restrict inbound traffic
+to trusted devices; the MCP endpoint has no authentication. The web port remains
+published on host loopback. Set `ROBONIX_SIM_ATLAS` to the Atlas address
+reachable from the container.
+`SCENE_ACTIVATE_TIMEOUT_S` sets the lifecycle activation wait (default `85`
+seconds); CPU model loading may need a longer wait.

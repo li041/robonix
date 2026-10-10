@@ -1448,14 +1448,16 @@ pub async fn execute(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    let atlas_endpoint = deploy
-        .system
-        .get("atlas")
-        .and_then(|v| v.as_mapping())
-        .and_then(|m| m.get(serde_yaml::Value::String("listen".into())))
-        .and_then(|v| v.as_str())
-        .unwrap_or("127.0.0.1:50051")
-        .to_string();
+    let atlas_endpoint = std::env::var("ROBONIX_ATLAS").unwrap_or_else(|_| {
+        deploy
+            .system
+            .get("atlas")
+            .and_then(|v| v.as_mapping())
+            .and_then(|m| m.get(serde_yaml::Value::String("listen".into())))
+            .and_then(|v| v.as_str())
+            .unwrap_or("127.0.0.1:50051")
+            .to_string()
+    });
     teardown::write_state(
         &state_path,
         &teardown::BootState {

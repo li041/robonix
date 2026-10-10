@@ -16,10 +16,71 @@ from robonix_api.lifecycle import (
     generated_grpc_metadata,
     lifecycle_contract_for_module,
 )
-from robonix_api.capability import _ProviderBase
+from robonix_api.capability import Skill, _ProviderBase
 from robonix_api.result import Deferred, Ok
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def _explore_provider(tmp_path):
+    provider = Skill("explore", "robonix/skill/explore", pkg_root=tmp_path)
+    for suffix in ("explore", "explore/status", "explore/cancel"):
+        def handler():
+            pass
+        handler._robonix_contract_id = f"robonix/skill/explore/{suffix}"
+        provider._mcp_handlers.append(handler)
+    return provider
+
+
+@pytest.mark.parametrize("code", ["UNAVAILABLE", "DEADLINE_EXCEEDED"])
+def test_mcp_registration_recovers_a_transient_cancel_failure(tmp_path, monkeypatch, code):
+    import grpc
+
+    provider = _explore_provider(tmp_path)
+    declared = []
+    attempts = []
+    delays = []
+
+    class Interrupted(grpc.RpcError):
+        def code(self):
+            return getattr(grpc.StatusCode, code)
+
+    def declare(**kwargs):
+        cid = kwargs["contract_id"]
+        attempts.append(cid)
+        if cid.endswith("/cancel") and attempts.count(cid) == 1:
+            raise Interrupted()
+        declared.append(cid)
+
+    monkeypatch.setattr(provider, "declare_capability", declare)
+    monkeypatch.setattr("time.sleep", delays.append)
+    provider._declare_mcp_handlers()
+
+    assert declared == [handler._robonix_contract_id for handler in provider._mcp_handlers]
+    assert attempts.count("robonix/skill/explore/explore/cancel") == 2
+    assert delays == [0.25]
+
+
+@pytest.mark.parametrize("code, attempts", [("UNAVAILABLE", 3), ("PERMISSION_DENIED", 1)])
+def test_mcp_registration_cannot_succeed_with_a_missing_capability(
+    tmp_path, monkeypatch, code, attempts,
+):
+    import grpc
+    from unittest.mock import Mock
+
+    provider = _explore_provider(tmp_path)
+
+    class Rejected(grpc.RpcError):
+        def code(self):
+            return getattr(grpc.StatusCode, code)
+
+    declare = Mock(side_effect=Rejected())
+    monkeypatch.setattr(provider, "declare_capability", declare)
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    with pytest.raises(RuntimeError, match="failed to declare MCP capability"):
+        provider._declare_mcp_handlers()
+    assert declare.call_count == attempts
 
 
 class _Response:

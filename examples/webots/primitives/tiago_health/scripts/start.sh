@@ -24,6 +24,7 @@ no_proxy_value="$(append_no_proxy_hosts "${no_proxy:-${NO_PROXY:-localhost,127.0
 
 exec docker exec \
   -e ROBONIX_ATLAS="$ATLAS_ENDPOINT" \
+  -e ROBONIX_DRIVER_PORT="${ROBONIX_DRIVER_PORT:-40104}" \
   -e ROBONIX_ADVERTISE_HOST="$ADVERTISE_HOST" \
   -e NO_PROXY="$NO_PROXY_VALUE" \
   -e no_proxy="$no_proxy_value" \

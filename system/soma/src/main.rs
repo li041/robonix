@@ -330,7 +330,7 @@ async fn main() -> Result<()> {
     }
 
     // ── Soma's own gRPC service registration ─────────────────────────
-    let advertised = format!("127.0.0.1:{}", listen_addr.port());
+    let advertised = startup_driver_endpoint(listen_addr);
     atlas
         .register_service(&config.provider_id, SOMA_NAMESPACE, "")
         .await
@@ -732,6 +732,10 @@ mod tests {
 
     #[test]
     fn startup_dial_rewrites_unspecified_addresses() {
+        assert_eq!(
+            startup_driver_endpoint("192.0.2.1:51001".parse().unwrap()),
+            "192.0.2.1:51001"
+        );
         assert_eq!(
             startup_driver_endpoint("0.0.0.0:51001".parse().unwrap()),
             "127.0.0.1:51001"

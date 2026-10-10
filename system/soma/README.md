@@ -29,6 +29,9 @@ Fields can also be supplied on the CLI (`--atlas`, `--listen`, `--provider-id`,
 `--robot-yaml`); CLI flags win over config-file values. `rbnx boot` uses this
 CLI mode — it does not write a soma config file on disk.
 
+An explicit listen IP is also advertised through Atlas. Unspecified listen
+addresses advertise loopback, so remote consumers need an explicit reachable IP.
+
 The robot's `soma.yaml` and any files it references (URDF, package
 `robonix_manifest.yaml` for stage 1/2 bring-up) must live somewhere Soma can
 read at startup.

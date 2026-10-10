@@ -78,7 +78,9 @@ if Path("/.dockerenv").exists():
     log.addHandler(_console)
 
 
-_lifecycle = SceneLifecycleRuntime(log)
+_lifecycle = SceneLifecycleRuntime(
+    log, activate_timeout_s=float(os.environ.get("SCENE_ACTIVATE_TIMEOUT_S", "85"))
+)
 
 
 @scene.on_init

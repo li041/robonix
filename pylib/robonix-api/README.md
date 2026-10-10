@@ -18,6 +18,14 @@ pip install "robonix-api[codegen]"   # adds grpcio-tools, only needed if you run
 
 ROS 2 (`rclpy`, `sensor_msgs`, `geometry_msgs`, etc.) is **not** a pip dependency — install ROS 2 Humble via `apt` on the host. `robonix-api`'s ROS helpers import `rclpy` lazily, so the rest of the library works even without a ROS install.
 
+`ROBONIX_DRIVER_PORT` and `ROBONIX_MCP_PORT` select fixed lifecycle and MCP
+ports for container port mappings. Both default to `0`, which lets the OS
+allocate a free port.
+
+Startup requires every decorated MCP capability to be declared in Atlas.
+Transient declaration failures receive up to two retries; persistent failures
+stop the servers and unregister the provider instead of leaving partial tools.
+
 ## Hello, primitive
 
 ```python

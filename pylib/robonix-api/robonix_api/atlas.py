@@ -204,7 +204,9 @@ class _Atlas:
 
     def unregister(self, id: str) -> bool:
         try:
-            resp = self._wire_stub.Unregister(self._wire_pb.UnregisterRequest(id=id))
+            resp = self._wire_stub.Unregister(
+                self._wire_pb.UnregisterRequest(id=id), timeout=5.0
+            )
             return bool(resp.was_present)
         except Exception as e:  # noqa: BLE001
             log.debug("Unregister(%s): %s", id, e)
@@ -212,9 +214,9 @@ class _Atlas:
 
     def heartbeat(self, id: str) -> None:
         try:
-            self._wire_stub.Heartbeat(self._wire_pb.HeartbeatRequest(id=id))
+            self._wire_stub.Heartbeat(self._wire_pb.HeartbeatRequest(id=id), timeout=5.0)
         except Exception as e:  # noqa: BLE001
-            log.debug("heartbeat(%s): %s", id, e)
+            log.warning("heartbeat(%s): %s", id, e)
 
     def start_heartbeat(
         self,
@@ -266,7 +268,7 @@ class _Atlas:
                 endpoint=endpoint,
                 params=pb_params,
                 description=description,
-            ))
+            ), timeout=10.0)
             return resp.endpoint or endpoint
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.ALREADY_EXISTS:
@@ -438,7 +440,7 @@ class _Atlas:
         import grpc
         try:
             resp = self._wire_stub.QueryContract(
-                self._wire_pb.QueryContractRequest(contract_id=contract_id)
+                self._wire_pb.QueryContractRequest(contract_id=contract_id), timeout=5.0
             )
         except grpc.RpcError as e:
             log.debug("QueryContract(%s): %s", contract_id, e)

@@ -213,17 +213,26 @@ if [[ "${ROBONIX_FORCE_CPU:-0}" != "1" ]]; then
     fi
 fi
 
-# SCENE_WEB_HOST below defaults to loopback. The container runs with
-# --network host, so what the service binds is what the host exposes, and the
-# web UI has no authentication while its annotation endpoints write map data.
-# Set SCENE_WEB_HOST=0.0.0.0 to reach it from another machine.
+NETWORK_ARGS=(--network "${ROBONIX_SIM_NETWORK:-host}")
+if [[ "${ROBONIX_SIM_NETWORK:-host}" != host ]]; then
+    export ROBONIX_ADVERTISE_HOST="${ROBONIX_ADVERTISE_HOST:-127.0.0.1}"
+    export SCENE_DRIVER_PORT="${SCENE_DRIVER_PORT:-40201}"
+    export SCENE_MCP_PORT="${SCENE_MCP_PORT:-40202}"
+    export SCENE_WEB_HOST="${SCENE_WEB_HOST-0.0.0.0}"
+    NETWORK_ARGS+=(-p "$ROBONIX_ADVERTISE_HOST:$SCENE_DRIVER_PORT:$SCENE_DRIVER_PORT"
+        -p "$ROBONIX_ADVERTISE_HOST:$SCENE_MCP_PORT:$SCENE_MCP_PORT"
+        -p "127.0.0.1:${SCENE_WEB_PORT:-50107}:${SCENE_WEB_PORT:-50107}")
+fi
+
 exec docker run --rm \
     --name "$CT" \
     --entrypoint /scene/docker/entrypoint.sh \
-    --network host \
+    "${NETWORK_ARGS[@]}" \
     --ipc=host \
     ${GPU_ARGS[@]+"${GPU_ARGS[@]}"} \
-    -e ROBONIX_ATLAS="${ROBONIX_ATLAS:-127.0.0.1:50051}" \
+    -e ROBONIX_ATLAS="${ROBONIX_SIM_ATLAS:-${ROBONIX_ATLAS:-127.0.0.1:50051}}" \
+    -e ROBONIX_DRIVER_PORT="${SCENE_DRIVER_PORT:-0}" \
+    -e ROBONIX_MCP_PORT="${SCENE_MCP_PORT:-0}" \
     -e ROBONIX_PROVIDER_BIND_HOST="${ROBONIX_PROVIDER_BIND_HOST:-0.0.0.0}" \
     -e ROBONIX_ADVERTISE_HOST="${ROBONIX_ADVERTISE_HOST:-}" \
     -e ROBONIX_CAPABILITY_ID="${ROBONIX_CAPABILITY_ID:-com.robonix.system.scene}" \
@@ -231,6 +240,7 @@ exec docker run --rm \
     -e SCENE_WEB_PORT="${SCENE_WEB_PORT:-50107}" \
     -e SCENE_WEB_HOST="${SCENE_WEB_HOST-127.0.0.1}" \
     -e SCENE_LOG_LEVEL="${SCENE_LOG_LEVEL:-INFO}" \
+    -e SCENE_ACTIVATE_TIMEOUT_S="${SCENE_ACTIVATE_TIMEOUT_S:-85}" \
     -e SCRIBE_LOG_DIR="${SCRIBE_LOG_DIR:-}" \
     -e SCENE_OBJECT_VIEWS_DIR="${SCENE_OBJECT_VIEWS_DIR:-/data/robonix/scene_object_views}" \
     -e SCENE_OBJECT_VIEWS_MAX="${SCENE_OBJECT_VIEWS_MAX:-}" \
