@@ -19,6 +19,32 @@ bash examples/webots/sim/start.sh
 bash examples/webots/boot.sh
 ```
 
+On WSL2, you can select the Windows-native Webots installation while keeping
+the same `sim/start.sh` entry point. The Robonix launcher starts Windows
+Webots, the WSL ROS 2 bridge, and RViz2; the default remains the Docker-based
+simulation above:
+
+```bash
+# Terminal 1
+bash examples/webots/sim/start.sh --windows-native --world office.wbt
+
+# Terminal 2 (use the bridge endpoint for this launcher)
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+export ROBONIX_SIM_NETWORK=bridge
+export ROBONIX_ZENOH_ROUTER=tcp/127.0.0.1:7447
+bash examples/webots/boot.sh
+
+# After shutting down Robonix
+bash examples/webots/sim/stop.sh --windows-native
+```
+
+The Windows runtime files are expected at `/mnt/d/RobonixWebots`. Set
+`ROBONIX_WINDOWS_WEBOTS_ROOT` if they are stored elsewhere. This path supplies
+the Windows Webots installation, its ROS runtime files, and its persistent
+asset cache. The native launcher supports `--world` and `--tiago-variant`;
+other simulation options remain available only in the default Docker-based
+mode.
+
 ## Robot selection
 
 Bridge mode publishes lifecycle ports `40101`–`40104` and camera/lidar MCP

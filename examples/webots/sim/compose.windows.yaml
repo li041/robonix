@@ -1,0 +1,16 @@
+services:
+  sim:
+    network_mode: bridge
+    entrypoint: ["bash", "/native/container-entrypoint.sh"]
+    environment:
+      WEBOTS_HEADLESS_MODE: host
+      ZENOH_ROUTER_CONFIG_URI: /native/zenoh-router.json5
+      ZENOH_SESSION_CONFIG_URI: /native/zenoh-session.json5
+    ports:
+      - "127.0.0.1:7447:7447"
+      - "40101-40104:40101-40104"
+      - "40110-40120:40110-40120"
+    volumes:
+      - ${ROBONIX_WINDOWS_WEBOTS_ROOT:?set ROBONIX_WINDOWS_WEBOTS_ROOT}/runtime/container-entrypoint.sh:/native/container-entrypoint.sh:ro
+      - ${ROBONIX_WINDOWS_WEBOTS_ROOT:?set ROBONIX_WINDOWS_WEBOTS_ROOT}/runtime/zenoh-router.json5:/native/zenoh-router.json5:ro
+      - ${ROBONIX_WINDOWS_WEBOTS_ROOT:?set ROBONIX_WINDOWS_WEBOTS_ROOT}/runtime/zenoh-session.json5:/native/zenoh-session.json5:ro

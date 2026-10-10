@@ -10,6 +10,20 @@
 # / container-name collisions.
 set -euo pipefail
 
+windows_native=0
+if [[ "${1:-}" == "--windows-native" ]]; then
+    windows_native=1
+    shift
+fi
+if [[ $# -gt 0 ]]; then
+    echo "Usage: $0 [--windows-native]" >&2
+    exit 2
+fi
+
+if [[ "$windows_native" == "1" ]]; then
+    exec bash "$(dirname "$0")/stop_windows.sh"
+fi
+
 cd "$(dirname "$0")"
 WEBOTS_DIR="$(cd .. && pwd -P)"
 

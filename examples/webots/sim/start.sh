@@ -35,6 +35,21 @@ export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
+# The Windows-native launcher is an optional WSL2 path. Delegate before the
+# Docker-based launcher prepares images, displays, or Compose overlays.
+windows_native=0
+windows_args=()
+for arg in "$@"; do
+    if [[ "$arg" == "--windows-native" ]]; then
+        windows_native=1
+    else
+        windows_args+=("$arg")
+    fi
+done
+if [[ "$windows_native" == "1" ]]; then
+    exec bash "$SCRIPT_DIR/start_windows.sh" "${windows_args[@]}"
+fi
+
 # Keep simulator teardown scoped to this exact Compose project/container pair.
 # The PID file records only the RViz wrapper launched for this pair; stop.sh
 # never searches or kills unrelated host processes.
