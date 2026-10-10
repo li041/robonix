@@ -32,6 +32,9 @@ calling remain available to other consumers. Omitted values default to `true`.
 
 The wire schema lives in [`proto/atlas.proto`](proto/atlas.proto).
 
+The Rust client retries read-only provider queries up to twice after transient
+transport failures, with a five-second deadline on each attempt.
+
 ## Namespace diagnostics
 
 A provider's namespace is its primary grouping for discovery and operator

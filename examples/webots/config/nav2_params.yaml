@@ -35,7 +35,8 @@ bt_navigator:
     robot_base_frame: base_link
     odom_topic: "__ROBONIX_ODOM_TOPIC__"
     bt_loop_duration: 50
-    default_server_timeout: 20
+    # Bridge transport and CPU perception can delay action acknowledgements.
+    default_server_timeout: 1000
     # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
     # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
     # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml

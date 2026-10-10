@@ -13,10 +13,8 @@
 // to one, the executor sends Driver(CMD_ACTIVATE) on its `*/driver`
 // capability to flip it to ACTIVE — that's where the skill actually
 // allocates its hot resources (frontier loop / nav subscribers / VLA
-// worker / …). We track which skill provider_ids we've already activated in
-// this executor process; subsequent calls skip the CMD_ACTIVATE RPC to
-// keep latency flat (sticky policy). A future eviction algorithm
-// (EXECUTOR_EVICTION_POLICY=deactivate) will drive CMD_DEACTIVATE.
+// worker / …). Atlas state determines whether activation is needed, including
+// after a provider restarts under the same id.
 //
 // The grpc dispatch helper exists for future non-MCP contracts but is not
 // on the LLM-callable path today.
@@ -27,8 +25,6 @@ pub mod builtin;
 pub mod grpc;
 pub mod mcp;
 
-use std::collections::HashSet;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -45,19 +41,6 @@ use robonix_scribe::{debug, info};
 const CMD_ACTIVATE: u32 = 1;
 const DRIVER_ACTIVATE_TIMEOUT: Duration = Duration::from_secs(60);
 const DEPLOY_CONSUMER_ID: &str = "com.robonix.executor.skill_activate";
-
-static ACTIVATED: Mutex<Option<HashSet<String>>> = Mutex::new(None);
-
-fn mark_activated(provider_id: &str) -> bool {
-    let mut g = ACTIVATED.lock().expect("ACTIVATED poisoned");
-    let set = g.get_or_insert_with(HashSet::new);
-    set.insert(provider_id.to_string())
-}
-
-fn already_activated(provider_id: &str) -> bool {
-    let g = ACTIVATED.lock().expect("ACTIVATED poisoned");
-    g.as_ref().is_some_and(|s| s.contains(provider_id))
-}
 
 fn is_skill_namespace(ns: &str) -> bool {
     let mut parts = ns.split('/').filter(|p| !p.is_empty());
@@ -133,16 +116,10 @@ pub async fn dispatch_with_timeout(
     result
 }
 
-/// If `provider_id` is a skill that hasn't been activated in this process
-/// yet, resolve its `*/driver` capability and send Driver(CMD_ACTIVATE).
+/// Resolve an INACTIVE skill's Driver and send CMD_ACTIVATE.
 /// No-op for primitives, services, system providers, skills already in
-/// ACTIVE (per atlas), and skills already activated in this executor
-/// process (sticky cache).
+/// ACTIVE per Atlas.
 async fn ensure_skill_active(atlas: &mut AtlasClient, provider_id: &str) -> Result<()> {
-    if already_activated(provider_id) {
-        debug!("[skill-activate] {provider_id}: already activated, skipping CMD_ACTIVATE");
-        return Ok(());
-    }
     let providers = atlas
         .query_capabilities(provider_id, "", atlas_pb::Transport::Unspecified)
         .await
@@ -161,8 +138,7 @@ async fn ensure_skill_active(atlas: &mut AtlasClient, provider_id: &str) -> Resu
         return Ok(());
     }
     if provider.state == atlas_pb::LifecycleState::StateActive as i32 {
-        info!("[skill-activate] {provider_id}: already ACTIVE per atlas, marking sticky");
-        mark_activated(provider_id);
+        debug!("[skill-activate] {provider_id}: already ACTIVE per Atlas");
         return Ok(());
     }
     if provider.state != atlas_pb::LifecycleState::StateInactive as i32 {
@@ -241,7 +217,6 @@ async fn ensure_skill_active(atlas: &mut AtlasClient, provider_id: &str) -> Resu
             r.error
         );
     }
-    mark_activated(provider_id);
     Ok(())
 }
 

@@ -4,6 +4,9 @@
 Pilot `Plan` messages, validates the RTDL node arena, and dispatches each `do`
 node to a primitive, service, or skill provider through Atlas.
 
+Before calling a skill, Executor checks its current Atlas state. A skill
+restarted under the same id is activated again when it is INACTIVE.
+
 ## Build
 
 From the repo root:

@@ -241,17 +241,33 @@ impl AtlasClient {
         namespace_prefix: &str,
         transport: pb::Transport,
     ) -> Result<Vec<pb::CapabilityProvider>> {
-        let resp = self
-            .inner
-            .query(pb::QueryRequest {
-                kind: kind as i32,
-                id: id.to_string(),
-                contract_id: contract_id.to_string(),
-                namespace_prefix: namespace_prefix.to_string(),
-                transport: transport as i32,
-            })
-            .await
-            .with_context(|| format!("Query kind={kind:?}"))?;
+        let query = pb::QueryRequest {
+            kind: kind as i32,
+            id: id.to_string(),
+            contract_id: contract_id.to_string(),
+            namespace_prefix: namespace_prefix.to_string(),
+            transport: transport as i32,
+        };
+        let mut attempt = 0;
+        let resp = loop {
+            let mut request = tonic::Request::new(query.clone());
+            request.set_timeout(Duration::from_secs(5));
+            match self.inner.query(request).await {
+                Ok(response) => break response,
+                Err(error)
+                    if attempt < 2
+                        && (error.code() == tonic::Code::Unavailable
+                            || error.code() == tonic::Code::DeadlineExceeded
+                            || (error.code() == tonic::Code::Unknown
+                                && error.message() == "transport error")) =>
+                {
+                    attempt += 1;
+                    warn!("Query kind={kind:?} interrupted; retry {attempt}/2: {error}");
+                    tokio::time::sleep(Duration::from_millis(250 * attempt)).await;
+                }
+                Err(error) => return Err(error).with_context(|| format!("Query kind={kind:?}")),
+            }
+        };
         Ok(resp.into_inner().providers)
     }
 
