@@ -174,6 +174,11 @@ class WebotsDeployConfigTest(unittest.TestCase):
     def test_bridge_network_publishes_the_zenoh_router(self):
         launcher = (ROOT / "sim" / "start.sh").read_text()
         self.assertIn('CF+=(-f compose.bridge.yaml)', launcher)
+        self.assertIn(
+            'ROBONIX_ADVERTISE_HOST="${ROBONIX_ADVERTISE_HOST:-127.0.0.1}"',
+            launcher,
+        )
+        self.assertIn('export WSLENV="${WSLENV:+$WSLENV:}ROBONIX_ADVERTISE_HOST"', launcher)
         self.assertIn('ROBONIX_SIM_ZENOH_PORT="${ROBONIX_SIM_ZENOH_PORT:-7447}"', launcher)
         expected_router = (
             "ROBONIX_ZENOH_ROUTER=tcp/127.0.0.1:${ROBONIX_SIM_ZENOH_PORT}"
@@ -182,7 +187,12 @@ class WebotsDeployConfigTest(unittest.TestCase):
         bridge = yaml.safe_load((ROOT / "sim" / "compose.bridge.yaml").read_text())
         self.assertEqual(
             bridge["services"]["sim"]["ports"],
-            ["127.0.0.1:${ROBONIX_SIM_ZENOH_PORT:-7447}:7447"],
+            [
+                "127.0.0.1:${ROBONIX_SIM_ZENOH_PORT:-7447}:7447",
+                "${ROBONIX_ADVERTISE_HOST:-127.0.0.1}:40101-40104:40101-40104",
+                "${ROBONIX_ADVERTISE_HOST:-127.0.0.1}:40112:40112",
+                "${ROBONIX_ADVERTISE_HOST:-127.0.0.1}:40113:40113",
+            ],
         )
 
 if __name__ == "__main__":

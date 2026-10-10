@@ -45,6 +45,53 @@ bash examples/webots/boot.sh
 command. The wrapper is required when selecting the full variant because it
 keeps Soma and simulated health on the same robot description.
 
+## WSL2 with Docker Desktop
+
+For the three text tasks in the quickstart, use the separate bridge-network
+deployment. Use the same `ROBONIX_ADVERTISE_HOST` value when starting the
+simulator and deployment. It defaults to `127.0.0.1`; set it to the host's
+reachable LAN IP when an AIBOX Pro or another machine needs access. These
+provider endpoints have no authentication, so restrict inbound access to
+trusted devices in the host firewall. Atlas also accepts connections from the
+simulator container in bridge mode; its `ROBONIX_ATLAS_LISTEN` address needs a
+separate firewall rule limited to Docker Desktop/WSL traffic and approved
+remote clients such as the AIBOX Pro.
+
+For AIBOX access, set the host's LAN IPv4 address in `examples/webots/.env`:
+
+```bash
+export ROBONIX_ADVERTISE_HOST=192.168.1.20
+```
+
+Source the same file in both terminals. The simulator launcher forwards this
+variable to Docker Compose, and `boot-wsl.sh` uses it for provider advertisement.
+When unset, both use `127.0.0.1`.
+
+```bash
+# Terminal 1
+source examples/webots/.env
+export ROBONIX_SIM_NETWORK=bridge
+bash examples/webots/sim/start.sh
+
+# Terminal 2
+source examples/webots/.env
+bash examples/webots/boot-wsl.sh --no-update-check -v
+```
+
+`robonix_manifest.wsl.yaml` omits audio and speech packages. The launcher
+selects an IPv4 Docker host endpoint. `ROBONIX_ATLAS_LISTEN` controls the
+Atlas listener and the default client port; `ROBONIX_ATLAS` overrides the host
+client address, and `ROBONIX_SIM_ATLAS` overrides the container client address.
+Set a different Atlas port if Windows already occupies `50051`.
+
+In another terminal, load the same settings and run `rbnx chat`:
+
+```bash
+source examples/webots/.env
+rbnx caps
+rbnx chat
+```
+
 ## TIAGo variants
 
 The default `lite` variant is the existing TIAGo base and body without an arm:

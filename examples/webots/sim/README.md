@@ -21,6 +21,12 @@ bash examples/webots/boot.sh
 
 ## Robot selection
 
+Bridge mode publishes lifecycle ports `40101`–`40104` and camera/lidar MCP
+ports `40112`/`40113` on `ROBONIX_ADVERTISE_HOST` (default `127.0.0.1`). Set
+that variable to a reachable host IP when another machine needs access, and
+restrict inbound traffic to trusted devices. Recreate an existing simulator
+through `sim/start.sh` to apply changed port mappings before using `boot-wsl.sh`.
+
 TIAGo Lite remains the default:
 
 ```bash

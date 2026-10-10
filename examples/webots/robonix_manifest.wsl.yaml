@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: MulanPSL-2.0
+# Text tasks on WSL2 with Docker Desktop bridge networking.
+manifestVersion: 1
+name: robonix-webots-example-deploy
+system:
+  atlas:
+    listen: ${ROBONIX_ATLAS_LISTEN}
+    log: info
+  soma:
+    robot_yaml: ${ROBONIX_SOMA_ROBOT_YAML}
+    runtime_reader_command:
+    - docker
+    - exec
+    - ${ROBONIX_SIM_CONTAINER}
+    - bash
+    - -lc
+    - source /opt/ros/humble/setup.bash && exec python3 -u /robonix_runtime/soma/soma_runtime_ros.py
+      /robonix_runtime/soma/soma_runtime_sources.json
+    listen: ${ROBONIX_ADVERTISE_HOST}:50091
+    atlas: ${ROBONIX_ATLAS}
+  scene: {}
+  executor:
+    listen: 127.0.0.1:50093
+    verification:
+      overlap: true
+      rules:
+      - target_contract_id: robonix/service/navigation/navigate
+        target_provider_id: nav2
+        verifier_provider_id: scene_verifier
+        verifier_args:
+          scene_provider_id: scene
+          check_yaw: true
+    atlas: ${ROBONIX_ATLAS}
+  pilot:
+    listen: ${ROBONIX_ADVERTISE_HOST}:50071
+    vlm:
+      upstream: ${VLM_BASE_URL}
+      api_key: ${VLM_API_KEY}
+      model: ${VLM_MODEL}
+    atlas: ${ROBONIX_ATLAS}
+  vitals:
+    listen: ${ROBONIX_ADVERTISE_HOST}:50052
+    log: info
+    soma_endpoint: ${ROBONIX_ADVERTISE_HOST}:50091
+    atlas: ${ROBONIX_ATLAS}
+  liaison:
+    listen: ${ROBONIX_ADVERTISE_HOST}:50081
+    atlas: ${ROBONIX_ATLAS}
+primitive:
+- name: tiago_chassis
+  path: ./primitives/tiago_chassis
+  config: {}
+- name: tiago_camera
+  path: ./primitives/tiago_camera
+  config:
+    width: 640
+    height: 480
+    fx: 554.0
+    fy: 554.0
+    cx: 320.0
+    cy: 240.0
+    sentinel_timeout_s: 150
+- name: tiago_lidar
+  path: ./primitives/tiago_lidar
+  config:
+    update_rate: 10
+    frame_id: lidar
+    sentinel_timeout_s: 150
+- name: tiago_health
+  path: ./primitives/tiago_health
+  config:
+    variant: ${ROBONIX_TIAGO_VARIANT}
+    scenario: normal
+    interval_s: 0.5
+    battery_percent: 82.0
+    voltage: 24.8
+    remaining_s: 10800
+service:
+- name: memgraph
+  path: ../../services/memory
+  config:
+    backend: memgraph
+- name: memory
+  path: ${ROBONIX_SOURCE_PATH}/services/memsearch
+  config: {}
+- name: mapping
+  url: https://github.com/syswonder/service-map-rbnx
+  branch: main
+  config:
+    use_sim_time: true
+    algo: slam_toolbox
+    sensor_providers:
+      lidar2d: tiago_lidar
+      odom: tiago_chassis
+- name: scene_verifier
+  path: ${ROBONIX_SOURCE_PATH}/services/verifiers/scene_verifier
+  config:
+    distance_tolerance_m: 0.5
+    yaw_tolerance_rad: 0.35
+    observation_timeout_s: 5.0
+- name: nav2
+  url: https://github.com/syswonder/service-navigation-rbnx
+  branch: main
+  config:
+    params_file: config/nav2_params.yaml
+    use_sim_time: true
+    action_wait_s: 240.0
+    dynamic_speed:
+      max_linear_speed_mps: 0.26
+      default_percentage: 100
+      step_percentage: 20
+      min_percentage: 20
+    guard_terminal_xy_m: 0.2
+    provider_ids:
+      map: mapping
+      odom: tiago_chassis
+      scan: tiago_lidar
+      depth: tiago_camera
+skill:
+- name: explore
+  path: ${ROBONIX_EXPLORE_SOURCE_PATH}
+  config: {}

@@ -178,8 +178,12 @@ EFFECTIVE_HEADLESS_MODE=$(robonix_effective_webots_headless_mode \
 # default 7447; do not rely on rmw_zenoh_cpp discovery across the namespace.
 if [[ "${ROBONIX_SIM_NETWORK:-host}" != "host" ]]; then
   CF+=(-f compose.bridge.yaml)
+  export ROBONIX_ADVERTISE_HOST="${ROBONIX_ADVERTISE_HOST:-127.0.0.1}"
+  # Docker Desktop's Windows CLI needs WSLENV to receive this Compose value.
+  export WSLENV="${WSLENV:+$WSLENV:}ROBONIX_ADVERTISE_HOST"
   export ROBONIX_SIM_ZENOH_PORT="${ROBONIX_SIM_ZENOH_PORT:-7447}"
   echo "[sim/start] bridge Zenoh router: tcp/127.0.0.1:${ROBONIX_SIM_ZENOH_PORT}"
+  echo "[sim/start] provider ports published on ${ROBONIX_ADVERTISE_HOST}"
   echo "[sim/start] REQUIRED in the host rbnx boot shell:"
   echo "[sim/start]   export ROBONIX_ZENOH_ROUTER=tcp/127.0.0.1:${ROBONIX_SIM_ZENOH_PORT}"
 fi
