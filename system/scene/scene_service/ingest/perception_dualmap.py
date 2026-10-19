@@ -220,9 +220,27 @@ class DualMapDetector(ConceptGraphsDetector):
         os.makedirs(out_dir, exist_ok=True)
         weights = {k: os.environ.get(f"SCENE_DUALMAP_{k.upper()}_WEIGHTS", "").strip() or v
                    for k, v in _DEFAULT_WEIGHTS.items()}
-        for name, path in weights.items():
-            if not os.path.isfile(path):
-                log.warning("[scene-dualmap] %s weights missing: %s", name, path)
+        # RKNPU3 mode: the detector graphs run on the board's NPU; torch then
+        # only needs MobileSAM's decoder and the CLIP text tower (ViT-B/32).
+        npu_dir = os.environ.get("SCENE_DUALMAP_NPU_DIR", "").strip()
+        clip_weights = os.environ.get("SCENE_DUALMAP_CLIP_WEIGHTS", "").strip()
+        if npu_dir:
+            if not os.path.isfile(os.path.join(npu_dir, "npu_meta.json")):
+                log.warning("[scene-dualmap] SCENE_DUALMAP_NPU_DIR=%s has no npu_meta.json", npu_dir)
+                return False
+            if not clip_weights:
+                clip_weights = next((p for p in ("/opt/models/clip/ViT-B-32.pt", "/root/weights/clip/ViT-B-32.pt")
+                                     if os.path.isfile(p)), "")
+            if not clip_weights:
+                log.warning("[scene-dualmap] NPU mode needs SCENE_DUALMAP_CLIP_WEIGHTS "
+                            "(openai ViT-B/32 checkpoint) for the CLIP text tower")
+                return False
+            needed = ("sam",)
+        else:
+            needed = tuple(weights)
+        for name in needed:
+            if not os.path.isfile(weights[name]):
+                log.warning("[scene-dualmap] %s weights missing: %s", name, weights[name])
                 return False
         try:
             self._classes_file = self._write_classes_file()
@@ -240,6 +258,11 @@ class DualMapDetector(ConceptGraphsDetector):
             f"fastsam.model_path={weights['fastsam']}", f"clip.pretrained={weights['mobileclip']}",
             f"use_fastsam={str(self._use_fastsam).lower()}",
         ]
+        if npu_dir:
+            overrides += [
+                "use_npu=true", f"npu_model_dir={npu_dir}",
+                "clip.model_name=ViT-B-32", f"clip.pretrained={clip_weights}",
+            ]
         overrides += [f"{k}={self._lifecycle_cfg[k]}" for k in sorted(self._lifecycle_cfg)]
         # DualMap's YAML paths are relative to its checkout, not Scene's cwd.
         classes = self._classes_file or os.path.join(root, "config", "class_list", "gpt_indoor_general.txt")
@@ -271,8 +294,8 @@ class DualMapDetector(ConceptGraphsDetector):
         if not self._dm_names:
             log.warning("[scene-dualmap] empty vocabulary — every object would be dropped as unknown; not starting")
             return False
-        log.info("[scene-dualmap] root=%s vocabulary=%d names (%s) device=%s", root, len(self._dm_names),
-                 self._classes_file or "DualMap default list", device)
+        log.info("[scene-dualmap] root=%s vocabulary=%d names (%s) device=%s npu=%s", root, len(self._dm_names),
+                 self._classes_file or "DualMap default list", device, npu_dir or "off")
         return True
 
     # ── per-tick mapping ──────────────────────────────────────────────

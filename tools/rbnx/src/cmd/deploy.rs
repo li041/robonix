@@ -67,7 +67,7 @@ const CMD_DEACTIVATE: u32 = 2;
 const CMD_SHUTDOWN: u32 = 3;
 // How long to wait for a freshly spawned package to register its driver
 // capability with atlas before giving up.
-const DRIVER_REGISTER_TIMEOUT: Duration = Duration::from_secs(60);
+const DRIVER_REGISTER_TIMEOUT: Duration = Duration::from_secs(180);
 // Default Driver(CMD_INIT) deadline. Webots CI can override this with
 // ROBONIX_DRIVER_INIT_TIMEOUT_S for real stacks whose lifecycle bringup may
 // exceed 90s on a cold self-hosted runner.

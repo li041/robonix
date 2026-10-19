@@ -39,7 +39,6 @@ fn rejects_optional_request_fields(status: reqwest::StatusCode, body: &str) -> b
         "stream_options",
         "include_usage",
         "prompt_cache_key",
-        "prompt_cache_options",
         "response_format",
         "json_schema",
     ]
@@ -595,15 +594,6 @@ impl VlmClient {
             .context("build chat completion request")?;
         let mut request_body = serde_json::to_value(request)
             .context("serialize chat completion request for transport")?;
-        // GPT-5.6 understands these OpenAI cache controls. Keep the stable
-        // system prefix alive through the interactive task; compatibility
-        // fallback below removes this optional field if a proxy rejects it.
-        if let Some(body) = request_body.as_object_mut() {
-            body.insert(
-                "prompt_cache_options".to_string(),
-                serde_json::json!({"mode": "implicit", "ttl": "30m"}),
-            );
-        }
 
         let url = format!("{}/chat/completions", self.api_base);
         let mut retry_index = 0;
@@ -633,7 +623,7 @@ impl VlmClient {
                 let downgraded = downgrade_response_format(&mut request_body);
                 let mut dropped: Vec<&str> = Vec::new();
                 if let Some(body) = request_body.as_object_mut() {
-                    for field in ["stream_options", "prompt_cache_key", "prompt_cache_options"] {
+                    for field in ["stream_options", "prompt_cache_key"] {
                         if body.remove(field).is_some() {
                             dropped.push(field);
                         }
