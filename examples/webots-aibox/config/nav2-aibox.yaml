@@ -1,0 +1,17 @@
+params_file: /root/robonix/examples/webots/config/nav2_params.yaml
+use_sim_time: true
+action_wait_s: 240.0
+provider_ids:
+  map: mapping
+  odom: tiago_chassis
+  scan: tiago_lidar
+  depth: tiago_camera
+dynamic_speed:
+  max_linear_speed_mps: 0.26
+  default_percentage: 100
+  step_percentage: 20
+  min_percentage: 20
+guard_terminal_xy_m: 0.2
+depth_obstacles:
+  stride: 8
+  rate_hz: 2
