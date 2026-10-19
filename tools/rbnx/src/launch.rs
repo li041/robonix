@@ -65,7 +65,7 @@ pub const CMD_DEACTIVATE: u32 = 2;
 pub const CMD_SHUTDOWN: u32 = 3;
 /// Max time we'll wait for a freshly spawned package to register its
 /// driver capability with atlas before giving up.
-pub const DRIVER_REGISTER_TIMEOUT: Duration = Duration::from_secs(60);
+pub const DRIVER_REGISTER_TIMEOUT: Duration = Duration::from_secs(180);
 
 /// Max time we'll wait for one `Driver(CMD_*)` RPC to return. 90s gives
 /// generous slack for slow-warming sensors (Webots's camera can take
