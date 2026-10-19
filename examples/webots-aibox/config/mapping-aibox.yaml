@@ -1,0 +1,5 @@
+algo: slam_toolbox
+use_sim_time: true
+sensor_providers:
+  lidar2d: tiago_lidar
+  odom: tiago_chassis

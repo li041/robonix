@@ -68,6 +68,7 @@ services:
       WEBOTS_WARMUP_SEC: "${WEBOTS_WARMUP_SEC:-25}"
       # This simulator owns rmw_zenohd; all Webots-side ROS nodes must use it.
       RMW_IMPLEMENTATION: "rmw_zenoh_cpp"
+      ROBONIX_ZENOH_COMPRESSION: "${ROBONIX_ZENOH_COMPRESSION:-1}"
       # Package sources and generated stubs are bind-mounted from the host.
       # Do not leave root-owned __pycache__ directories there when drivers run
       # through docker exec; those files otherwise make the next clean build

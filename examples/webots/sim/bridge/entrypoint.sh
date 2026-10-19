@@ -124,7 +124,13 @@ start_zenoh_router() {
     return 1
   fi
   export ZENOH_ROUTER_CHECK_ATTEMPTS="${ZENOH_ROUTER_CHECK_ATTEMPTS:-20}"
-  "$router_bin" >/tmp/rmw_zenohd.log 2>&1 &
+  if [ "${ROBONIX_ZENOH_COMPRESSION:-0}" = "1" ]; then
+    echo "[entrypoint] enabling Zenoh unicast compression"
+    ZENOH_CONFIG_OVERRIDE='transport/unicast/compression/enabled=true' \
+      "$router_bin" >/tmp/rmw_zenohd.log 2>&1 &
+  else
+    "$router_bin" >/tmp/rmw_zenohd.log 2>&1 &
+  fi
   ZENOH_ROUTER_PID=$!
   echo "[entrypoint] rmw_zenohd pid=${ZENOH_ROUTER_PID}"
   local i

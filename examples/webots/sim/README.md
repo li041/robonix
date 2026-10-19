@@ -19,6 +19,27 @@ bash examples/webots/sim/start.sh
 bash examples/webots/boot.sh
 ```
 
+## AIBOX on Ubuntu
+
+To register this simulator's TIAGo providers with Atlas on a remote AIBOX, use
+`start-aibox-ubuntu.sh` from an Ubuntu desktop session:
+
+```bash
+bash examples/webots/sim/start-aibox-ubuntu.sh --world office.wbt
+```
+
+The launcher uses host networking so AIBOX can reach each TIAGo provider's
+dynamically assigned lifecycle port through the Ubuntu host's Tailscale IPv4
+address. AIBOX ROS 2 connects directly to the Ubuntu host's Tailscale IPv4 on
+Zenoh port 7447; do not tunnel this high-volume sensor stream through SSH. If
+AIBOX cannot reach its VLM endpoint directly, forward only the optional VLM
+HTTP proxy over SSH. The AIBOX deployment steps and provider commands are in
+`.agents/skills/deploy-aibox-ubuntu/SKILL.md`.
+
+The launcher enables Zenoh unicast compression by default. Use 5 GHz Wi-Fi for
+AIBOX when available; its sensor traffic shares the Tailnet link with the
+simulator providers.
+
 ## Robot selection
 
 TIAGo Lite remains the default:

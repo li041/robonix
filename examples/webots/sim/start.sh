@@ -171,17 +171,16 @@ CF=(-f compose.yaml)
 EFFECTIVE_HEADLESS_MODE=$(robonix_effective_webots_headless_mode \
   "${WEBOTS_HEADLESS_MODE:-}" "${ROBONIX_SIM_STREAM:-0}")
 
-# The default host network exposes the simulator's rmw_zenohd directly on
-# localhost:7447. Bridge mode publishes its router on host loopback only. Every
-# host-side `rbnx boot` used with bridge mode MUST receive the exact mapped
-# endpoint through ROBONIX_ZENOH_ROUTER, including when the mapped port is the
-# default 7447; do not rely on rmw_zenoh_cpp discovery across the namespace.
+# The default host network exposes the simulator's rmw_zenohd on TCP port 7447.
+# AIBOX connects to the Ubuntu host's Tailscale address directly. Bridge mode
+# publishes its router on the configured host address; every host-side client
+# in bridge mode must receive that exact endpoint via ROBONIX_ZENOH_ROUTER.
 if [[ "${ROBONIX_SIM_NETWORK:-host}" != "host" ]]; then
   CF+=(-f compose.bridge.yaml)
   export ROBONIX_SIM_ZENOH_PORT="${ROBONIX_SIM_ZENOH_PORT:-7447}"
-  echo "[sim/start] bridge Zenoh router: tcp/127.0.0.1:${ROBONIX_SIM_ZENOH_PORT}"
-  echo "[sim/start] REQUIRED in the host rbnx boot shell:"
-  echo "[sim/start]   export ROBONIX_ZENOH_ROUTER=tcp/127.0.0.1:${ROBONIX_SIM_ZENOH_PORT}"
+  zenoh_bind_host="${ROBONIX_ADVERTISE_HOST:-127.0.0.1}"
+  echo "[sim/start] bridge Zenoh router: tcp/${zenoh_bind_host}:${ROBONIX_SIM_ZENOH_PORT}"
+  echo "[sim/start] Set ROBONIX_ZENOH_ROUTER=tcp/${zenoh_bind_host}:${ROBONIX_SIM_ZENOH_PORT} for ROS 2 clients outside the simulator container."
 fi
 
 if [[ "${ROBONIX_FORCE_CPU:-0}" != "1" ]] && command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
