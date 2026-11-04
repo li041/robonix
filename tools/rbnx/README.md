@@ -181,10 +181,10 @@ sections. `rbnx boot` passes that
 identity to the package as `RBNX_INSTANCE_NAME`; the Python SDK uses it for
 registration, capability declaration, heartbeat, and lifecycle state while
 preserving the package's source-level id for standalone `rbnx start`. Startup
-waits only for a fresh registration of that exact id, so unrelated providers
-that register concurrently cannot receive the instance's lifecycle config. If
-that id is already live in Atlas before spawn, startup fails rather than taking
-over the existing provider.
+waits up to 180 seconds for a fresh registration of that exact id, so unrelated
+providers that register concurrently cannot receive the instance's lifecycle
+config. If that id is already live in Atlas before spawn, startup fails rather
+than taking over the existing provider.
 
 Package authors normally omit Driver from `capabilities`; rbnx and current
 codegen automatically select and register `robonix/lifecycle/driver`. Explicit
