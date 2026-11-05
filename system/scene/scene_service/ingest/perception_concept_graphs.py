@@ -1897,17 +1897,23 @@ class ConceptGraphsDetector:
                 pts = finite_pts
                 obb_yaw = _yaw_from_pca_xy(pts[:, :2])
                 cy_, sy_ = float(np.cos(obb_yaw)), float(np.sin(obb_yaw))
-                pts_local_xy = (pts[:, :2] - pts[:, :2].mean(axis=0)) @ np.array([[cy_, sy_], [-sy_, cy_]]).T
-                obb_center = np.array([
-                    float(pts[:, 0].mean()), float(pts[:, 1].mean()), float(pts[:, 2].mean()),
-                ])
+                mean_xy = pts[:, :2].mean(axis=0)
+                pts_local_xy = (pts[:, :2] - mean_xy) @ np.array([[cy_, sy_], [-sy_, cy_]]).T
                 # 5–95 percentile, not min/max: a single outlier point would set the extent.
                 lo, hi = np.percentile(pts_local_xy[:, 0], [5, 95])
-                ex_x = float(hi - lo)
+                ex_x, mid_x = float(hi - lo), float(lo + hi) / 2.0
                 lo, hi = np.percentile(pts_local_xy[:, 1], [5, 95])
-                ex_y = float(hi - lo)
+                ex_y, mid_y = float(hi - lo), float(lo + hi) / 2.0
                 lo, hi = np.percentile(pts[:, 2], [5, 95])
-                ex_z = float(hi - lo)
+                ex_z, mid_z = float(hi - lo), float(lo + hi) / 2.0
+                # The centre is the midpoint of the same trimmed window as the
+                # extents, never the raw mean: contamination the trimming already
+                # rejected must not drag the centre outside the box.
+                obb_center = np.array([
+                    float(mean_xy[0] + mid_x * cy_ - mid_y * sy_),
+                    float(mean_xy[1] + mid_x * sy_ + mid_y * cy_),
+                    mid_z,
+                ])
                 obb_extent = np.array([ex_x, ex_y, ex_z])
                 # Final NaN/Inf guard.
                 if not (np.all(np.isfinite(obb_center)) and np.all(np.isfinite(obb_extent))
