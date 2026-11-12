@@ -3,8 +3,8 @@
 One `rbnx boot` on the AIBOX board brings up the whole stack for the TIAGo
 Webots simulation:
 
-- **AIBOX board**: Atlas, soma, executor, pilot, liaison, vitals, mapping
-  (native), nav2 (native), explore (docker).
+- **AIBOX board**: Atlas, soma, executor, pilot, liaison, vitals, mapping,
+  nav2, and Scene (native), plus explore (docker).
 - **Ubuntu sim host**: the four TIAGo primitives, started through SSH
   wrappers (`primitives/*` forward their `build`/`start`/`stop` over
   `remote.env:HOST_SSH`), each docker-exec'ing its driver into the sim
@@ -29,15 +29,16 @@ The Webots sim itself stays outside boot — it is a GUI container owned by
    `zenoh-aibox.json5` (the session config it points to), and `vlm.env`
    (VLM credentials; the real file never leaves the board). `boot.env`
    sources all three.
-4. The three service/skill packages are upstream repos referenced by
-   `url:` in the manifest; `rbnx build` / `rbnx boot` clone them into
-   `examples/webots/rbnx-boot/cache/` on the board and keep them built.
+4. Mapping, nav2, and explore are upstream packages referenced by `url:` in
+   the manifest; `rbnx build` / `rbnx boot` keeps them built in the board's
+   `examples/webots/rbnx-boot/cache/`. Scene is built from `system/scene`.
 
 ## Bring up
 
 ```bash
-# Ubuntu sim host:
-bash examples/webots/sim/start.sh --world office.wbt
+# Ubuntu sim host (opens Webots on the desktop):
+WEBOTS_GUI=1 \
+  bash examples/webots/sim/start.sh --world office.wbt
 # wait for "[sim/start] live odom, RGB, and lidar data received"
 
 # AIBOX board:
@@ -48,10 +49,10 @@ rbnx boot -f robonix_manifest.yaml --no-update-check -v
 ```
 
 Boot waits for each layer to register before the next: the four primitives
-must be ACTIVE before mapping starts, mapping before nav2, explore last.
+must be ACTIVE before mapping starts, followed by nav2, Scene, and explore.
 
 Verify with `rbnx caps -v` (expect the four TIAGo primitives, mapping, nav2,
-explore) and a `rbnx ask "What can you see in front of the robot?"`.
+Scene, and explore) and a `rbnx ask "What can you see in front of the robot?"`.
 
 ## Tear down
 
@@ -63,3 +64,23 @@ Shutdown reaches each remote driver via Atlas, then the stop hooks sweep any
 leftover remote wrapper or driver (wrapper first — a live wrapper would
 respawn its driver), then the board-side processes. Stop the sim last on the
 Ubuntu host with `bash examples/webots/sim/stop.sh`.
+
+## Known trade-offs
+
+- The remote wrapper dies with its SSH channel; the drivers it spawned are
+  docker-exec'd and can outlive it. The stop hooks are the cleanup path, and
+  Atlas GC reclaims registrations when the sim host is unreachable.
+- Boot cannot restart a remote driver; a crashed primitive needs a full
+  `rbnx shutdown` + boot cycle.
+- If a primitive start dies at registration, check the sim host first: the
+  sim container must be running and reachable before boot starts.
+- A cold first boot can time out while Explore's Docker container builds
+  inside Soma's registration wait. Both `rbnx` and `robonix-soma` on the board
+  need the 180-second `DRIVER_REGISTER_TIMEOUT`; a stale Soma build still
+  times out after 60 seconds.
+- Scene needs the NPU bundle described in
+  `system/scene/AIBOX_MODEL_PORTING.md`, patched DualMap at `/opt/dualmap`,
+  and `/root/weights/clip/ViT-B-32.pt` for the CPU text tower. NPU mode does
+  not load `mobile_sam.pt`.
+- Pilot can hang before registering if its VLM context-window probe reaches a
+  stalled tunnel. Restart the boot and check the tunnel if that recurs.

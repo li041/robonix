@@ -124,6 +124,24 @@ service:
       depth_obstacles:
         stride: 8
         rate_hz: 2
+  # Scene semantic mapping uses the board's DualMap fp16 NPU graphs. The
+  # SCENE_* model paths come from boot.env.
+  - name: scene
+    path: ../../system/scene
+    manifest: package_manifest.jetson-native.yaml
+    config:
+      perception:
+        backend: dualmap
+        dualmap:
+          keyframe_translation_m: 0.5
+          keyframe_rotation_deg: 8.0
+          keyframe_time_s: 5.0
+          stable_num: 2
+          classes: []
+          floor_gate: false
+          global_map: false
+      confidence_threshold: 0.20
+      max_detections: 30
 skill:
   # Frontier-based autonomous exploration; registered after services and
   # left INACTIVE until a task calls it.
